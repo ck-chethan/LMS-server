@@ -1,14 +1,15 @@
-import express from 'express'
+import express, { NextFunction, Request, Response } from 'express'
 import dotenv from 'dotenv'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import helmet from 'helmet'
 import morgan from 'morgan'
 import * as dynamoose from 'dynamoose'
-import e from 'express'
+import { createClerkClient } from '@clerk/express'
 
 /* ROUTE IMPORTS */
 import courseRoutes from './routes/courseRoutes'
+import userClerkRoutes from './routes/userClerkRoutes'
 
 /* CONFIGURATIONS */
 dotenv.config()
@@ -18,6 +19,10 @@ const isProduction = process.env.NODE_ENV === 'production'
 if (!isProduction) {
   dynamoose.aws.ddb.local()
 }
+
+export const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+})
 
 const app = express()
 app.use(express.json())
@@ -35,8 +40,9 @@ app.get('/', (req, res) => {
 })
 
 app.use('/courses', courseRoutes)
+app.use('/users/clerk', userClerkRoutes)
 
-app.use((err: any, req: e.Request, res: e.Response, next: e.NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error(err.stack)
   res.status(500).send('Something broke!')
 })
