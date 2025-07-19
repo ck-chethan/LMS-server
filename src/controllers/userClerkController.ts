@@ -9,7 +9,7 @@ export const updateUser = async (
   const { userId } = req.params
   const userData = req.body
   try {
-    await clerkClient.users.updateUserMetadata(userId, {
+    const user = await clerkClient.users.updateUserMetadata(userId, {
       publicMetadata: {
         userType: userData.publicMetadata.userType,
         settings: userData.publicMetadata.settings,
@@ -17,6 +17,7 @@ export const updateUser = async (
     })
     res.status(200).json({
       message: 'User updated successfully',
+      data: user,
     })
   } catch (error) {
     console.error('Error updating user:', error)
