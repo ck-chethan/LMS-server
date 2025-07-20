@@ -1,6 +1,9 @@
 import Stripe from 'stripe'
 import dotenv from 'dotenv'
 import { Request, Response } from 'express'
+import Course from '../models/courseModel'
+import Transaction from '../models/transactionModel'
+import UserCourseProgress from '../models/userCourseProgressModel'
 
 dotenv.config()
 
@@ -16,7 +19,7 @@ export const createStripePaymentIntent = async (
 ): Promise<void> => {
   const { amount, currency } = req.body
 
-  if (!amount || !currency) {
+  if (!amount) {
     res.status(400).json({ error: 'Amount and currency are required' })
   }
 
@@ -42,5 +45,66 @@ export const createStripePaymentIntent = async (
   } catch (error) {
     console.error('Stripe Payment Intent Error:', error)
     res.status(500).json({ error: 'Failed to create payment intent' })
+  }
+}
+
+export const createTransaction = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { transactionId, userId, courseId, paymentProvider, amount } = req.body
+
+  if (!transactionId || !userId || !courseId || !paymentProvider || !amount) {
+    res.status(400).json({ error: 'All fields are required' })
+    return
+  }
+
+  try {
+    const course = await Course.get(courseId)
+    const newTransaction = new Transaction({
+      dateTime: new Date().toISOString(),
+      userId,
+      courseId,
+      transactionId,
+      paymentProvider,
+      amount,
+    })
+    await newTransaction.save()
+
+    const initialProgress = new UserCourseProgress({
+      userId,
+      courseId,
+      enrollmentDate: new Date().toISOString(),
+      overallProgress: 0,
+      sections: course.sections.map((section: any) => ({
+        sectionId: section.sectionId,
+        chapters: section.chapters.map((chapter: any) => ({
+          chapterId: chapter.chapterId,
+          completed: false,
+        })),
+      })),
+      lastAccessedTimestamp: new Date().toISOString(),
+    })
+    await initialProgress.save()
+
+    await Course.update(
+      { courseId },
+      {
+        $ADD: {
+          enrollments: [{ userId }],
+        },
+      }
+    )
+
+    res.status(201).json({
+      message: 'Purchased course successfully',
+      data: {
+        newTransaction,
+        courseProgress: initialProgress,
+      },
+    })
+  } catch (error) {
+    console.error('Transaction Creation Error:', error)
+    res.status(500).json({ error: 'Failed to create transaction' })
   }
 }
