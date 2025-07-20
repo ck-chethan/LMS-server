@@ -112,3 +112,24 @@ export const createTransaction = async (
     res.status(500).json({ error: 'Failed to create transaction' })
   }
 }
+
+export const listTransactions = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  const { userId } = req.query
+
+  try {
+    const transactions = userId
+      ? await Transaction.query('userId').eq(userId).exec()
+      : await Transaction.scan().exec()
+
+    res.status(200).json({
+      message: 'Transactions retrieved successfully',
+      data: transactions,
+    })
+  } catch (error) {
+    console.error('Get Transactions Error:', error)
+    res.status(500).json({ error: 'Failed to retrieve transactions' })
+  }
+}
